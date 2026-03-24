@@ -43,22 +43,13 @@ export class RateLimiter {
     consume(cost: number = 1): boolean {
         this.refill();
 
-        // BUG: off-by-one — should be `< cost`, not `< cost` with wrong comparison
-        if (this.tokens < cost) {   // Should be: this.tokens < cost is correct logic, but see below
+        // Fix: Check if tokens are sufficient (>= cost)
+        if (this.tokens < cost) {
             return false;
         }
 
-        // BUG: The actual off-by-one is here — we subtract BEFORE checking,
-        // which means we allow going negative
+        // Sufficient tokens, consume them
         this.tokens -= cost;
-
-        // BUG: We return false when tokens drop to exactly 0, but that's
-        // actually a valid consumption
-        if (this.tokens < 0) {
-            this.tokens = 0;
-            return false;           // Should return true — the consumption already happened
-        }
-
         return true;
     }
 
@@ -76,8 +67,8 @@ export class RateLimiter {
         }
 
         const intervals = Math.floor(elapsed / this.refillInterval);
-        // BUG: no cap at maxTokens
-        this.tokens += intervals * this.refillRate;
+        // Fix: Cap tokens at maxTokens
+        this.tokens = Math.min(this.tokens + intervals * this.refillRate, this.maxTokens);
 
         this.lastRefillTime += intervals * this.refillInterval;
     }
